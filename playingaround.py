@@ -158,24 +158,7 @@ for day_num in range(0, 5):
                 operating_cost <= ticket_price * X[arc, day_num],
                 name="profit_" + arc + "_" + str(day_num)
             )
-# Add plane capacity constraints
-# PLANE_CAPACITY = 200  # Example plane capacity
 
-# # Nodes representing cities and layover points
-# flight_nodes = ['V', 'W', 'T', 'M', 'H', 'T*', 'M*']
-
-# for day_num in range(0, 5):
-#     for arc in arc_set:
-#         origin = arc.split("-")[0]
-#         dest = arc.split("-")[1]
-        
-#         # Check if both origin and destination are flight nodes
-#         if origin in flight_nodes and dest in flight_nodes:
-#             # Add capacity constraint for this flight arc
-#             FLIGHTS_MODEL.addConstr(
-#                 X[arc, day_num] <= PLANE_CAPACITY,
-#                 name="capacity_" + arc + "_" + str(day_num)
-#             )
 
 # Run the model
 FLIGHTS_MODEL.optimize()
