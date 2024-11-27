@@ -41,12 +41,11 @@ for line_num in range(0, len(rev_data)):
     row = rev_data[line_num].split(",")
     revenues_matrix.append(list(map(lambda x: int(x), row)))
 
-
 '''
 # Building the digraph
 '''
 cities = ['V', 'W', 'T', 'M', 'H']
-arc_set = [] + ['T*-H', 'M*-H']  # form: each arc (i,j) is a string: "i-j"
+arc_set = [] + ['T*-H', 'M*-H']  # form: each arc (i,j) is a string: "i-j"  
 for i in cities:
     arc_set.append(i + '-' + 't')
     for j in cities:
@@ -70,7 +69,7 @@ for i in cities:
                     arc_set.append('H' + j + '-' + 'T*'), arc_set.append('T*' + '-' + j)
                     arc_set.append('H' + j + '-' + 'M*'), arc_set.append('M*' + '-' + j)
                     arc_set.append(i + j + '-' + 't')
- 
+
 node_set = cities.copy() + ['T*', 'M*', 't']
 for i in cities:
     for j in cities:
@@ -85,16 +84,28 @@ FLIGHTS_MODEL = gp.Model("Passenger_Demands")
 
 # Variables - by arc and day
 X = FLIGHTS_MODEL.addVars(arc_set, [0,1,2,3,4], vtype=GRB.CONTINUOUS, lb=0, ub=float('inf'), name="x")
+n = FLIGHTS_MODEL.addVars(arc_set, [0, 1, 2, 3, 4], vtype=GRB.INTEGER, lb=0, name="n") # This is the total number of flights flying from city i to j on day k
 
-# Objective
+# Parameters
+plane_capacity = 211 # aribitray plane capcity 
+FuelCost = 1000  # Arbitrary fuel cost per flight This is temprory should really vaary from place to place
+LandingCost = 500  # Arbitrary landing cost per flight really should vary from place to place
+DepartureCost = 500  # Arbitrary departure cost per flight Vary from place to place
+
+
+# Objective function
 obj_fn = 0
 for day_num in range(0,5):
     for arc in arc_set:
         depart = arc.split("-")[0][0]
         arrive = arc.split("-")[1][0]
-
         if arrive != 't': # then the arc has some cost
-            obj_fn += revenues_matrix[table_index[depart]][table_index[arrive]] * X[arc, day_num]
+            revenue = revenues_matrix[table_index[depart]][table_index[arrive]] * X[arc, day_num]
+            cost = (FuelCost + LandingCost + DepartureCost) * n[arc, day_num] # arbitrarily added really costs need to be adjusted
+            # obj_fn += revenues_matrix[table_index[depart]][table_index[arrive]] * X[arc, day_num]
+            obj_fn += revenue - cost
+
+## Add fixed costs by plane here - not related to passenger demands
 
 FLIGHTS_MODEL.setObjective(obj_fn, GRB.MAXIMIZE)
 
@@ -122,6 +133,37 @@ for day_num in range(0,5):
         FLIGHTS_MODEL.addConstr(v_constraint == v_demand, name=v+str(day_num)) # flow conservation constraints
 
 
+# Flow conservation - ensure those on layovers make their destination
+for day_num in range(0,5):
+    FLIGHTS_MODEL.addConstr(X['VH-T*', day_num] + X['WH-T*', day_num] == X['T*-H', day_num])
+    FLIGHTS_MODEL.addConstr(X['VH-M*', day_num] + X['WH-M*', day_num] == X['M*-H', day_num])
+    FLIGHTS_MODEL.addConstr(X['HV-T*', day_num] == X['T*-V', day_num])
+    FLIGHTS_MODEL.addConstr(X['HV-M*', day_num] == X['M*-V', day_num])
+    FLIGHTS_MODEL.addConstr(X['HW-T*', day_num] == X['T*-W', day_num])
+    FLIGHTS_MODEL.addConstr(X['HW-M*', day_num] == X['M*-W', day_num])
+
+
+# Capacity constraints
+for day_num in range(0, 5):
+    for arc in arc_set:
+        if 't' not in arc:  # Ignore sink arcs
+            FLIGHTS_MODEL.addConstr(
+                X[arc, day_num] <= plane_capacity * n[arc, day_num],
+                name="capacity_" + arc + "_" + str(day_num)
+            )
+
+# Profit constraints
+for day_num in range(0, 5):
+    for arc in arc_set:
+        if 't' not in arc:  # Ignore sink arcs
+            ticket_price = revenues_matrix[table_index[arc.split("-")[0][0]]][table_index[arc.split("-")[1][0]]]
+            operating_cost = (FuelCost + LandingCost + DepartureCost) * n[arc, day_num]
+            FLIGHTS_MODEL.addConstr(
+                operating_cost <= ticket_price * X[arc, day_num],
+                name="profit_" + arc + "_" + str(day_num)
+            )
+
+
 # Run the model
 FLIGHTS_MODEL.optimize()
 
@@ -129,5 +171,5 @@ FLIGHTS_MODEL.optimize()
 # Test to confirm:
 for day_num in range(0,5):
     for arc in arc_set:
-        print("X[" + arc + ", " + str(day_num) + "] = " + str(X[arc, day_num].X))
-print(X["VW-W",1].X)
+        if (len(arc.split("-")[0])==2) and (arc.split("-")[1] == 't'):
+            print("X[" + arc + ", " + str(day_num) + "] = " + str(X[arc, day_num].X))
