@@ -225,6 +225,15 @@ for day_num in range(0,5):
         
         FLIGHTS_MODEL.addConstr(v_constraint == v_demand, name=f"flow_{v}_{day_num}")
 
+# Flow conservation - ensure those on layovers make their destination
+for day_num in range(0,5):
+    FLIGHTS_MODEL.addConstr(X['VH-T*', day_num] + X['WH-T*', day_num] == X['T*-H', day_num])
+    FLIGHTS_MODEL.addConstr(X['VH-M*', day_num] + X['WH-M*', day_num] == X['M*-H', day_num])
+    FLIGHTS_MODEL.addConstr(X['HV-T*', day_num] == X['T*-V', day_num])
+    FLIGHTS_MODEL.addConstr(X['HV-M*', day_num] == X['M*-V', day_num])
+    FLIGHTS_MODEL.addConstr(X['HW-T*', day_num] == X['T*-W', day_num])
+    FLIGHTS_MODEL.addConstr(X['HW-M*', day_num] == X['M*-W', day_num])
+
 
 ## Haviva part added for capacity constraints
 # Capacity constraints
