@@ -183,6 +183,8 @@ FLIGHTS_MODEL = gp.Model("Passenger_Demands")
 # Variables - by arc and day
 X = FLIGHTS_MODEL.addVars(arc_set, [0,1,2,3,4], vtype=GRB.CONTINUOUS, lb=0, ub=float('inf'), name="x")
 n = FLIGHTS_MODEL.addVars(arc_set, [0, 1, 2, 3, 4], vtype=GRB.INTEGER, lb=0, name="n") # This is the total numberof flights flying from city i to j on day k
+Z = FLIGHTS_MODEL.addVars(cities, [0,1,2,3,4,5], vtype=GRB.INTEGER, lb=0, name="Z")
+
 
 plane_capacity = 211  # Plane capacity of B767
 
@@ -255,6 +257,25 @@ for day_num in range(0, 5):
                 operating_cost <= ticket_price * X[arc, day_num],
                 name="profit_" + arc + "_" + str(day_num)
             )
+
+
+# Enough planes
+for day_num in range(0,5):
+    for c in cities:
+        out_flights = 0
+        in_flights = 0
+        for arc in arc_set:
+            depart = arc.split("-")[0]
+            arrive = arc.split("-")[1]
+            if ('*' not in depart) and ('t' not in arrive):
+                if depart[0] == c:
+                    out_flights += n[arc, day_num]
+                elif arrive[0] == c:
+                    in_flights += n[arc, day_num]
+        
+        FLIGHTS_MODEL.addConstr(Z[c, day_num] >= out_flights)
+        FLIGHTS_MODEL.addConstr(Z[c, day_num] + in_flights - out_flights == Z[c, day_num+1])
+
 
 
 # Run the model
