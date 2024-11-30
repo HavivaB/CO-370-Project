@@ -250,7 +250,7 @@ for day_num in range(0, 5):
     for arc in arc_set:
         if 't' not in arc:  # Ignore sink arcs
             ticket_price = revenues_matrix[table_index[arc.split("-")[0][0]]][table_index[arc.split("-")[1][0]]]
-            operating_cost = cost * n[arc, day_num]
+            operating_cost = cost * n[arc, day_num] # cost = overall of landing, fuel and AIF
             FLIGHTS_MODEL.addConstr(
                 operating_cost <= ticket_price * X[arc, day_num],
                 name="profit_" + arc + "_" + str(day_num)
