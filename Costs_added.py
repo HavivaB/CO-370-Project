@@ -181,7 +181,7 @@ for i in cities:
 FLIGHTS_MODEL = gp.Model("Passenger_Demands")
 
 # Variables - by arc and day
-X = FLIGHTS_MODEL.addVars(arc_set, [0,1,2,3,4], vtype=GRB.CONTINUOUS, lb=0, ub=float('inf'), name="x")
+X = FLIGHTS_MODEL.addVars(arc_set, [0,1,2,3,4], vtype=GRB.INTEGER, lb=0, ub=float('inf'), name="x")
 n = FLIGHTS_MODEL.addVars(arc_set, [0, 1, 2, 3, 4], vtype=GRB.INTEGER, lb=0, name="n") # This is the total numberof flights flying from city i to j on day k
 Z = FLIGHTS_MODEL.addVars(cities, [0,1,2,3,4,5], vtype=GRB.INTEGER, lb=0, name="Z")
 
