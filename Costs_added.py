@@ -1,4 +1,3 @@
-
 ## FUEL, LANDING FEES, AIF together
 import gurobipy as gp
 from gurobipy import GRB
@@ -44,49 +43,50 @@ aif_rates = {
     "Vancouver": 25,
 }
 
-# Helper function to calculate fuel cost per flight
+## Added by Vivek
+# Helper function to calculate fuel cost
 def calculate_fuel_cost(arc):
     """
     Calculate the fuel cost of traveling along a given arc (route).
     """
-    depart_city = arc[0]  # Departure city code
-    arrive_city = arc.split("-")[1][0]  # Arrival city code
+    # Extract departure and arrival city codes
+    depart_city = arc[0]  # Departure city is the first character
+    arrive_city = arc.split("-")[1][0]  # Arrival city is the first character after the hyphen
 
-    # Exclude arcs involving sink nodes or invalid routes
+    # Exclude arcs involving sink nodes, layover nodes, or invalid city codes (*)
     if depart_city == "t" or arrive_city == "t" or "*" in depart_city or "*" in arrive_city:
-        return 0
+        return 0  # No fuel cost for sink arcs or layover nodes
 
-    # Validate city codes
+    # Validate that departure and arrival cities are in the list of airports
     if depart_city not in airports or arrive_city not in airports:
         print(f"Warning: Invalid city code in arc {arc}")
         return 0
 
-    # Calculate fuel cost based on distance and consumption
-    distance = distances.get((depart_city, arrive_city), 0) or distances.get((arrive_city, depart_city), 0)
+    # Calculate fuel cost as the product of distance and fuel price
+    distance = distances.get((depart_city, arrive_city), 0) or distances.get((arrive_city, depart_city), 0) # eg H-T or T-H is 1288
     fuel_price = fuel_prices[depart_city]
-    fuel_consumption_per_km = 2.86  
-    return distance * fuel_consumption_per_km * fuel_price
+    return distance * fuel_price
 
-# Helper function to calculate landing fee
+## Added by Vivek
+# Helper function to calculate landing fee based on destination
 def get_landing_fee(arc):
     """
     Returns the landing fee for the destination city in the given arc.
     """
     destination = arc.split("-")[1][0]  # Get the destination city code
     city_map = {'H': 'Halifax', 'M': 'Montreal', 'T': 'Toronto', 'W': 'Winnipeg', 'V': 'Vancouver'}
-    landing_fee_rate = landing_fees.get(city_map.get(destination, ""), 0)  # Fee rate per ton
-    mtow_tons = 142.88  
-    return landing_fee_rate * mtow_tons
+    return landing_fees.get(city_map.get(destination, ""), 0)  # Default to 0 if invalid city
 
-# Helper function to calculate AIF per passenger
+## Added by Vivek
+# Helper function to calculate AIF based on departure city
 def get_aif(arc):
     """
     Returns the Airport Improvement Fee (AIF) for the departure city in the given arc.
     """
-    departure = arc[0]  # Departure city code
+    departure = arc[0]  # Get the departure city code
     city_map = {'H': 'Halifax', 'M': 'Montreal', 'T': 'Toronto', 'W': 'Winnipeg', 'V': 'Vancouver'}
-    aif_rate = aif_rates.get(city_map.get(departure, ""), 0)  # AIF per passenger
-    return aif_rate
+    return aif_rates.get(city_map.get(departure, ""), 0)  # Default to 0 if invalid city
+
 
 '''
 Processing data
@@ -176,7 +176,7 @@ FLIGHTS_MODEL = gp.Model("Passenger_Demands")
 
 # Variables - by arc and day
 X = FLIGHTS_MODEL.addVars(arc_set, [0,1,2,3,4], vtype=GRB.INTEGER, lb=0, ub=float('inf'), name="x")
-n = FLIGHTS_MODEL.addVars(arc_set, [0, 1, 2, 3, 4], vtype=GRB.INTEGER, lb=0, name="n") # This is the total number of flights flying from city i to j on day k
+n = FLIGHTS_MODEL.addVars(arc_set, [0, 1, 2, 3, 4], vtype=GRB.INTEGER, lb=0, name="n") # This is the total numberof flights flying from city i to j on day k
 Z = FLIGHTS_MODEL.addVars(cities, [0,1,2,3,4,5], vtype=GRB.INTEGER, lb=0, name="Z")
 
 
@@ -191,10 +191,10 @@ for day_num in range(0,5):
 
         if arrive != "t":  # then the arc has some cost
             revenue = revenues_matrix[table_index[depart]][table_index[arrive]] * X[arc, day_num]
-            fuel_cost = calculate_fuel_cost(arc) * n[arc, day_num] 
-            landing_cost = get_landing_fee(arc) * n[arc, day_num] 
-            aif_cost = get_aif(arc) * X[arc, day_num]  
-            cost = fuel_cost + landing_cost + aif_cost 
+            fuel_cost = calculate_fuel_cost(arc) * n[arc, day_num] # Added by Vivek fuel cost * no. flights that day
+            landing_cost = get_landing_fee(arc) * n[arc, day_num] # Added by Vivek landing costs * no flights that day
+            aif_cost = get_aif(arc) * X[arc, day_num]  # Added by Vivek AIF applied per passenger 
+            cost = fuel_cost + landing_cost + aif_cost # edited overall cost calculation
             obj_fn += revenue - cost
 
 FLIGHTS_MODEL.setObjective(obj_fn, GRB.MAXIMIZE)
@@ -220,6 +220,7 @@ for day_num in range(0,5):
                 v_constraint += X[arc,day_num]
         
         FLIGHTS_MODEL.addConstr(v_constraint == v_demand, name=f"flow_{v}_{day_num}")
+
 
 # Flow conservation - ensure those on layovers make their destination
 for day_num in range(0,5):
@@ -253,6 +254,7 @@ for day_num in range(0, 5):
             )
 
 
+
 # Enough planes
 for day_num in range(0,5):
     for c in cities:
@@ -272,6 +274,7 @@ for day_num in range(0,5):
 
 
 
+
 # Run the model
 FLIGHTS_MODEL.optimize()
 
@@ -283,6 +286,12 @@ for day_num in range(0, 5):
         n_value = n[arc, day_num].X
         if x_value > 0 or n_value > 0:
             print(f"Arc {arc}, Day {day_num}: Passengers = {x_value}, Flights = {n_value}")
+
+
+
+
+
+
 
 
 
