@@ -75,7 +75,7 @@ def get_landing_fee(arc):
     destination = arc.split("-")[1][0]  # Get the destination city code
     city_map = {'H': 'Halifax', 'M': 'Montreal', 'T': 'Toronto', 'W': 'Winnipeg', 'V': 'Vancouver'}
     landing_fee_rate = landing_fees.get(city_map.get(destination, ""), 0)  # Fee rate per ton
-    mtow_tons = 70.535  
+    mtow_tons = 142.88  
     return landing_fee_rate * mtow_tons
 
 # Helper function to calculate AIF per passenger
